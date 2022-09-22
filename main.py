@@ -30,7 +30,7 @@ class Figure:
         self.x = x_coord
         self.y = y_coord
         self.type = random.randint(0,len(self.Figures)-1)
-        self.color = colors[self.type+1]
+        self.color = colors[self.type]
         self.rotation = 0
 
     def image(self):
