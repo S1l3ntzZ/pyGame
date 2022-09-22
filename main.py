@@ -29,7 +29,7 @@ class Figure:
     def __init__(self, x_coord, y_coord):
         self.x = x_coord
         self.y = y_coord
-        self.type = random.randint(0, len(self.Figures)-1)
+        self.type = random.randint(0,len(self.Figures)-1)
         self.color = colors[self.type+1]
         self.rotation = 0
 
@@ -71,9 +71,16 @@ class Tetris:
 
     def side(self, dx):
         old_x = self.Figure.x
-        self.Figure.x += dx
-        if self.Figure.x < 0 or self.Figure.x > self.width:
-            self.Figure.x = old_x
+        edge = False
+        for i in range (4):
+            for j in range(4):
+                p = i*4+j
+                if p in self.Figure.image():
+                    if j + self.Figure.x + dx > self.width -1 or \
+                        j + self.Figure.x + dx < 0:
+                        edge = True
+        if not edge:
+            self.Figure.x = dx
         if self.intersects():
             self.Figure.x = old_x
         
@@ -85,7 +92,10 @@ class Tetris:
         self.side(1)
 
     def down(self):
-        pass
+        while not self.intersects():
+            self.Figure.y += 1
+        self.Figure.y -= 1
+        self.freeze()
 
     def rotate(self):
         old_rotation = self.Figure.rotation
@@ -95,7 +105,7 @@ class Tetris:
 
 
     def intersects(self):
-        interserction = False
+        intersection = False
         for i in range(4):
             for j in range(4):
                 p = i * 4 + j
@@ -103,8 +113,8 @@ class Tetris:
                     if i + self.Figure.y > self.height - 1 or \
                         i + self.Figure.y < 0 or \
                             self.field[i + self.Figure.y][j + self.Figure.x] > 0:
-                            interserction = True
-        return interserction
+                            intersection = True
+        return intersection
 
     def freeze(self):
         for i in range(4):
@@ -116,29 +126,41 @@ class Tetris:
         if self.intersects():
             self.state == "Game Over Dude!"
 
+    def break_lines(self):
+        lines = 0
+        for i in range(1, self.height):
+            zero = 0
+            for j in range (self.width):
+                if self.field[i][j] == 0:
+                    zero += 1
+                if zero == 0:
+                    lines += 1
+                    for i2 in range(i, 1, -1):
+                        for j in range(self.width):
+                            self.field[i2][j] = self.field[i2 - 1][j]
+                self.score += lines ** 2
+
+
 
 pygame.init()
 screen = pygame.display.set_mode((320, 615))
-
 pygame.display.set_caption("Tetrius")
 
 done = False
-fps = 4
+fps = 2
 clock = pygame.time.Clock()
 counter = 0
 zoom = 30
 
 game = Tetris(20, 10)
+pressing_down = False
+pressing_left = False
+pressing_right = False
 
 BLACK = (0,0,0)
 WHITE = (255,255,255)
 GREY = (128,128,128)
 
-
-pressing_down = False
-pressing_up = False
-pressing_left = False
-pressing_right = False
 
 while not done:
     if game.state == "start":
@@ -147,28 +169,31 @@ while not done:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             done = True
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
-                game.rotate(True)
+                game.rotate = True
             if event.key == pygame.K_DOWN:
-                pressing_down(True)
+                pressing_down = True
             if event.key == pygame.K_LEFT:
-                pressing_left(True)
+                pressing_left = True
             if event.key == pygame.K_RIGHT:
-                pressing_right(True)
+                pressing_right = True
+
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_DOWN:
-                pressing_down(False)
+                pressing_down = False
             if event.key == pygame.K_LEFT:
-                pressing_left(False)
+                pressing_left = False
             if event.key == pygame.K_RIGHT:
-                pressing_right(False)
-        # if pressing_down:
-        #     game.down()
-        # if pressing_left:
-        #     game.left()
-        # if pressing_right:
-        #     game.right()
+                pressing_right = False
+
+        if pressing_down:
+            game.down()
+        if pressing_left:
+            game.left()
+        if pressing_right:
+            game.right()
 
     screen.fill(color=WHITE)
     for i in range(game.height):
@@ -179,7 +204,7 @@ while not done:
             else: 
                 color = colors[game.field[i][j]]
                 just_border = 0
-            pygame.draw.rect(screen, color, [10+j*zoom, 10+i*zoom, zoom, zoom], just_border)
+            pygame.draw.rect(screen, color, [10 + j * zoom, 10 + i * zoom, zoom, zoom], just_border)
 
     if game.Figure is not None:
         for i in range(4):
@@ -187,7 +212,17 @@ while not done:
                 p = i*4+j
                 if p in game.Figure.image():
                     pygame.draw.rect(screen, game.Figure.color,
-                    [10+(j + game.Figure.x)*zoom, 10+(i + game.Figure.y)*zoom, zoom, zoom])
+                    [10 + (j + game.Figure.x) * zoom, 10 + (i + game.Figure.y) * zoom, zoom, zoom])
+
+    gameover_font = pygame.font.SysFont('Calibri', 65 , True, False)
+    text_gameover = gameover_font.render("Game Over!\n Press Esc.", True, (255, 215, 0))
+
+    if game.state == "gameover":
+        screen.blit(text_gameover, [30, 250])
+
+    score_font = pygame.font.SysFont('Calibri', 35, True, False)
+    text_score = score_font.render("Score: " + str(game.score), True, (0, 0, 0))
+    screen.blit(text_score, [100, 0])
 
     pygame.display.flip()
     clock.tick(fps)
